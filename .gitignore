@@ -30,5 +30,5 @@ temp/
 build/
 dist/
 *.exe
-*.spec
+
 

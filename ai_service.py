@@ -160,3 +160,5 @@ class AIService:
         
         return self.chat_completion(messages, max_tokens=target_length * 2)
 
+
+

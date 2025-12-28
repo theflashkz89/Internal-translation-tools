@@ -2,13 +2,15 @@ import streamlit as st
 from pathlib import Path
 import time
 import uuid
-from utils import handle_pdf_processing, translate_word_document
+from utils import handle_pdf_processing, translate_word_document, apply_custom_styles
 
 st.set_page_config(
     page_title="文档翻译",
     page_icon="📄",
     layout="wide"
 )
+
+apply_custom_styles()
 
 st.title("📄 文档翻译")
 
@@ -226,8 +228,10 @@ with col2:
                 file_content = f.read()
             
             # 生成下载文件名
-            original_name = Path(st.session_state.original_filename).stem
+            original_name = Path(st.session_state.original_filename).stem if st.session_state.original_filename else "document"
+            # 确保文件名是字符串
             download_filename = f"translated_{original_name}_{target_language}.docx"
+            print(f"DEBUG: Generated Download Filename: {download_filename}")
             
             # 下载按钮
             st.download_button(
@@ -236,7 +240,8 @@ with col2:
                 file_name=download_filename,
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 use_container_width=True,
-                type="primary"
+                type="primary",
+                key="download_btn"
             )
             
             # 清理提示

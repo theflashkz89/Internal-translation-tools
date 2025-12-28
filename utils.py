@@ -20,23 +20,18 @@ deepl_translator = None
 def _get_deepl_translator():
     """
     获取全局 DeepL 翻译器实例（单例模式）
-    
-    返回:
-        deepl.Translator: DeepL 翻译器实例
-    
-    异常:
-        ValueError: 当 API Key 未配置时抛出异常
     """
     global deepl_translator
     
     if deepl_translator is None:
-        # 从 Streamlit secrets 或环境变量获取 API Key
+        # 显式初始化变量，防止报错
         api_key = None
+        
+        # 尝试从 Streamlit secrets 获取
         try:
-            # 尝试从 Streamlit secrets 获取
             if hasattr(st, 'secrets') and hasattr(st.secrets, 'get'):
                 api_key = st.secrets.get("DEEPL_API_KEY")
-        except:
+        except Exception:
             pass
         
         # 如果 secrets 中没有，尝试从环境变量获取
@@ -50,15 +45,12 @@ def _get_deepl_translator():
             )
         
         # 根据 Key 后缀判断使用哪个 URL
-        # 如果 Key 结尾是 :fx，使用免费版 URL，否则使用 Pro 版
         if api_key.endswith(':fx'):
-            # 免费版 API
             deepl_translator = deepl.Translator(
                 auth_key=api_key,
                 server_url="https://api-free.deepl.com"
             )
         else:
-            # Pro 版 API
             deepl_translator = deepl.Translator(auth_key=api_key)
     
     return deepl_translator
@@ -278,9 +270,9 @@ def translate_text(text: str, target_language: str) -> str:
     if text_stripped in GLOSSARY:
         return GLOSSARY[text_stripped]
     
-    # 如果不在术语库中，继续走原来的 AI 翻译流程
-    prompt = f"请将以下文本翻译成{target_language}，只返回翻译结果，不要添加任何解释或说明："
-    return call_deepseek_api(text, prompt)
+    # 如果不在术语库中，使用 DeepL API 进行翻译
+    target_lang_code = _get_deepl_lang_code(target_language)
+    return call_deepl_api(text, target_lang=target_lang_code)
 
 
 def _get_deepl_lang_code(language_name: str) -> str:
@@ -352,6 +344,7 @@ def call_deepl_api(text: str, target_lang: str = "EN-US") -> str:
         # 获取 DeepL 翻译器实例
         translator = _get_deepl_translator()
         
+        print(f"Calling DeepL API with text length: {len(text)}, target: {target_lang}")
         # 调用 DeepL API 进行翻译
         result = translator.translate_text(text, target_lang=target_lang)
         
@@ -373,7 +366,13 @@ def call_deepl_api(text: str, target_lang: str = "EN-US") -> str:
         raise Exception(f"DeepL API 调用失败：{str(e)}")
     except Exception as e:
         # 捕获其他未知异常
+        import traceback
+        traceback.print_exc()
+        print(f"DeepL API Error: {str(e)}")
         raise Exception(f"调用 DeepL API 时发生未知错误：{str(e)}")
+
+    print(f"DeepL Translation Success: {result.text[:50]}...")
+    return result.text
 
 
 def call_deepl_api_batch(texts: List[str], target_lang: str = "EN-US") -> List[str]:
@@ -814,3 +813,203 @@ def translate_word_document(docx_path: str, target_language: str, progress_callb
         raise Exception(f"找不到文件：{docx_path}")
     except Exception as e:
         raise Exception(f"翻译Word文档时发生错误：{str(e)}")
+
+
+def apply_custom_styles():
+    """
+    应用自定义样式（DeepL风格）
+    """
+    st.markdown("""
+        <style>
+        /* ================================================================================== */
+        /* 全局字体与基础设置 */
+        /* ================================================================================== */
+        @import url('https://fonts.googleapis.com/css2?family=dataset&family=Inter:wght@400;500;600;700&display=swap');
+        
+        html, body, [class*="css"] {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            color: #333333;
+        }
+        
+        .stApp {
+            background-color: #FFFFFF;
+        }
+        
+        /* ================================================================================== */
+        /* 侧边栏样式 (DeepL 深蓝色风格) - 修复字体颜色 */
+        /* ================================================================================== */
+        section[data-testid="stSidebar"] {
+            background-color: #0F2B46; /* Deep Navy Blue */
+            border-right: none;
+        }
+        
+        /* 强制侧边栏内所有文本为白色 */
+        section[data-testid="stSidebar"] .stMarkdown,
+        section[data-testid="stSidebar"] h1, 
+        section[data-testid="stSidebar"] h2, 
+        section[data-testid="stSidebar"] h3, 
+        section[data-testid="stSidebar"] p, 
+        section[data-testid="stSidebar"] label,
+        section[data-testid="stSidebar"] span,
+        section[data-testid="stSidebar"] div {
+            color: #FFFFFF !important;
+        }
+        
+        /* 侧边栏链接/按钮 - 修复 */
+        section[data-testid="stSidebar"] a {
+            color: #60A5FA !important; /* Lighter blue for links */
+        }
+        
+        /* 侧边栏分割线 */
+        section[data-testid="stSidebar"] hr {
+            border-color: #1E3A5F !important;
+        }
+        
+        /* 侧边栏的信息提示框 */
+        section[data-testid="stSidebar"] .stAlert {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        section[data-testid="stSidebar"] .stAlert * {
+            color: #FFFFFF !important;
+        }
+        
+        /* ================================================================================== */
+        /* 隐藏 Streamlit 原生导航栏 (Sidebar Nav) */
+        /* ================================================================================== */
+        [data-testid="stSidebarNav"] {
+            display: none !important;
+        }
+        
+        /* ================================================================================== */
+        /* 主区域样式 */
+        /* ================================================================================== */
+        
+        /* 标题颜色 */
+        h1, h2, h3 {
+            color: #0F2B46;
+            font-weight: 700;
+        }
+        
+        /* ================================================================================== */
+        /* 输入框与文本域 (Card Style) */
+        /* ================================================================================== */
+        .stTextInput > div > div > input,
+        .stTextArea > div > div > textarea {
+            background-color: #F8F9FA !important;
+            border: 1px solid #E5E7EB !important;
+            border-radius: 8px !important;
+            color: #1F2937 !important;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+            padding: 1rem;
+        }
+        
+        /* 聚焦状态 - DeepL Blue Focus */
+        .stTextInput > div > div > input:focus,
+        .stTextArea > div > div > textarea:focus {
+            border-color: #3B82F6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+            background-color: #FFFFFF !important;
+        }
+        
+        /* Selectbox */
+        div[data-baseweb="select"] > div {
+            background-color: #F8F9FA !important;
+            border-radius: 8px !important;
+            border: 1px solid #E5E7EB !important;
+        }
+
+        /* ================================================================================== */
+        /* 按钮样式 - 修复红色按钮问题 */
+        /* ================================================================================== */
+        
+        /* Primary Button (主要操作) - 强制覆盖所有可能的 Primary 选择器 */
+        .stButton button[kind="primary"],
+        .stButton button[type="primary"],
+        div[data-testid="stBaseButton-primary"],
+        button[data-testid="stBaseButton-primary"] {
+            background-color: #3B82F6 !important; /* Bright Blue */
+            color: #FFFFFF !important;
+            border: none !important;
+            border-radius: 6px !important;
+            font-weight: 600 !important;
+            padding: 0.6rem 1.2rem !important;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3) !important;
+            transition: all 0.2s ease !important;
+        }
+        
+        .stButton button[kind="primary"]:hover,
+        .stButton button[type="primary"]:hover,
+        div[data-testid="stBaseButton-primary"]:hover,
+        button[data-testid="stBaseButton-primary"]:hover {
+            background-color: #2563EB !important; /* Darker Blue */
+            box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4) !important;
+            transform: translateY(-1px);
+        }
+        
+        /* Secondary Button (普通按钮) */
+        .stButton button[kind="secondary"],
+        .stButton button[type="secondary"],
+        div[data-testid="stBaseButton-secondary"],
+        button[data-testid="stBaseButton-secondary"] {
+            background-color: #FFFFFF !important;
+            color: #1F2937 !important;
+            border: 1px solid #D1D5DB !important;
+            border-radius: 6px !important;
+        }
+
+        /* ================================================================================== */
+        /* 文件上传组件汉化与美化 */
+        /* ================================================================================== */
+        [data-testid="stFileUploader"] {
+            padding: 20px;
+            border: 2px dashed #CBD5E1;
+            border-radius: 12px;
+            background-color: #F8F9FA;
+        }
+        
+        /* 覆盖 "Drag and drop..." 文字 */
+        [data-testid="stFileUploader"] section > div > div > span {
+            visibility: hidden;
+            position: relative;
+        }
+        [data-testid="stFileUploader"] section > div > div > span::after {
+            content: "拖拽文件到此处";
+            visibility: visible;
+            position: absolute;
+            top: 0;
+            left: 0;
+            color: #0F2B46;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        /* 覆盖 Limit 文字 */
+        [data-testid="stFileUploader"] section > div > div > small {
+            visibility: hidden;
+            position: relative;
+        }
+        [data-testid="stFileUploader"] section > div > div > small::after {
+            content: "单个文件限制 200MB • DOCX, PDF";
+            visibility: visible;
+            position: absolute;
+            top: 0;
+            left: 0;
+            color: #64748B;
+        }
+        
+        /* 浏览按钮文字覆盖 */
+        [data-testid="stFileUploader"] button[data-testid="stBaseButton-secondary"] {
+            font-size: 0 !important;
+            min-width: 100px;
+        }
+        [data-testid="stFileUploader"] button[data-testid="stBaseButton-secondary"]::after {
+            content: "浏览文件";
+            font-size: 14px !important;
+            visibility: visible;
+            color: #1F2937;
+        }
+        </style>
+    """, unsafe_allow_html=True)

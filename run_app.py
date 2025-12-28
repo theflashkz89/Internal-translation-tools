@@ -15,7 +15,7 @@ def resolve_path(path):
 if __name__ == "__main__":
     try:
         # 设置环境变量
-        os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"  # 不显示服务器启动信息
+        os.environ["STREAMLIT_SERVER_HEADLESS"] = "false"  # 允许显示服务器启动信息，自动打开浏览器
 
         # 获取 app.py 的绝对路径
         app_path = resolve_path("app.py")
