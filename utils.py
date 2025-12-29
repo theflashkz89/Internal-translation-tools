@@ -193,6 +193,52 @@ def call_deepseek_api(text: str, prompt: str, model: str = "deepseek-chat", max_
     raise Exception(f"调用 DeepSeek API 失败：{str(last_exception)}")
 
 
+def generate_email_draft(
+    email_type: str,
+    tone: str,
+    language: str,
+    recipient: str,
+    subject: str,
+    key_points: str
+) -> str:
+    """
+    使用 DeepSeek API 生成邮件草稿
+    
+    参数:
+        email_type (str): 邮件类型（商务邮件、感谢信、请求邮件、通知邮件、回复邮件）
+        tone (str): 语气风格（正式、友好、简洁、礼貌）
+        language (str): 邮件语言（中文、英文）
+        recipient (str): 收件人称呼（可选）
+        subject (str): 邮件主题
+        key_points (str): 关键要点/背景信息
+    
+    返回:
+        str: 生成的邮件草稿正文
+    """
+    # 构建系统提示词
+    system_prompt = f"""你是一位专业的商务写作助手。
+请根据用户提供的信息，撰写一封{email_type}。
+要求：
+- 语气：{tone}
+- 语言：{language}
+- 格式规范，结构清晰
+- 只输出邮件正文，不要添加额外说明
+- 如果是中文邮件，使用适当的敬语和礼貌用语
+- 如果是英文邮件，遵循商务邮件的标准格式
+- 重要：不要使用任何 Markdown 格式符号，包括星号（*）、下划线（_）、井号（#）等
+- 输出纯文本格式的邮件正文，不要有任何格式标记符号"""
+    
+    # 构建用户输入
+    recipient_text = recipient if recipient else "（未指定）"
+    user_input = f"""请撰写一封邮件：
+收件人称呼：{recipient_text}
+邮件主题：{subject}
+关键要点：
+{key_points}"""
+    
+    return call_deepseek_api(user_input, system_prompt)
+
+
 def _should_translate_text(text: str) -> bool:
     """
     检查文本是否需要翻译
